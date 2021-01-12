@@ -1,0 +1,71 @@
+server:
+  port: 7000
+  error:
+    include-message: always
+
+app:
+  user-service:
+    host: localhost
+    port: 7001
+
+spring:
+
+  application.name: composite-service
+
+  # RabbitMQ parameters
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+
+  # Messaging binders for the cloud streaming
+  cloud.stream:
+    # My personal property to stop the supplier from producing until when I want
+    producer.produce: false
+    # Default config
+    default:
+      binder: rabbit
+      contentType: application/json
+    bindings:
+      # Use the supplier function name as input to create destination and groups in 3.0+
+      userProducer-out-0:
+        destination: users
+        producer:
+          requiredGroups: usersGroup
+
+    # Kafka binder broker
+    kafka.binder:
+      brokers: 127.0.0.1
+      defaultBrokerPort: 9002
+
+# Logging settings
+logging:
+  level:
+    root: INFO
+    com.habeebcycle: DEBUG
+    org.springframework:
+      amqp: DEBUG
+      data.mongodb.core.MongoTemplate: DEBUG
+
+# Actuator endpoints
+management.endpoints:
+  health.show-details: "ALWAYS"
+  web.exposure.include: "*"   # Lock this up in production
+
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - docker
+  rabbitmq.host: rabbitmq
+  cloud.stream.kafka.binder.brokers: kafka
+
+app:
+  user-service:
+  host: user-service
+  port: 8080
+
+server:
+  port: 8080

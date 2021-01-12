@@ -1,0 +1,80 @@
+server:
+  port: 7001
+  error:
+    include-message: always
+
+spring:
+
+  application.name: user-service
+
+  data.mongodb:
+    host: localhost
+    port: 27017
+    database: user-db
+
+  # RabbitMQ parameters
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+
+  # Messaging binders for the cloud streaming
+  cloud.stream:
+    # Default config
+    default:
+      binder: rabbit
+      contentType: application/json
+    bindings:
+      # Deprecated in spring-cloud 3.0+
+      input: # Use the function name as used below
+        destination: users
+        group: usersGroup
+      # Use the consumer function name as input to create destination and group in 3.0+
+      userConsumer-in-0:
+        destination: users
+        group: usersGroup
+    # Consumer input binding parameters
+    bindings.userConsumer-in-0.consumer:
+      maxAttempts: 3
+      backOffInitialInterval: 500
+      backOffMaxInterval: 1000
+      backOffMultiplier: 2.0
+    # RabbitMQ consumer input binding parameters
+    rabbit.bindings.userConsumer-in-0.consumer:
+      autoBindDlq: true
+      republishToDlq: true
+    # Kafka consumer input binding parameters
+    kafka.bindings.userConsumer-in-0.consumer:
+      enableDlq: true
+    # Kafka binder broker
+    kafka.binder:
+      brokers: 127.0.0.1
+      defaultBrokerPort: 9002
+
+# Logging settings
+logging:
+  level:
+    root: INFO
+    com.habeebcycle: DEBUG
+    org.springframework:
+      amqp: DEBUG
+      data.mongodb.core.MongoTemplate: DEBUG
+
+# Actuator endpoints
+management.endpoints:
+  health.show-details: "ALWAYS"
+  web.exposure.include: "*"   # Lock this up in production
+
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - docker
+  data.mongodb.host: mongodb
+  rabbitmq.host: rabbitmq
+  cloud.stream.kafka.binder.brokers: kafka
+
+server:
+  port: 8080
