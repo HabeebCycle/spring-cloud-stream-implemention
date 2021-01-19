@@ -18,28 +18,19 @@ import reactor.core.publisher.Mono;
 public class UserController {
 
     private final UserService userService;
-    private final UserMapper userMapper;
-    private final ServerAddress serverAddress;
 
     @Autowired
-    public UserController(UserService userService, UserMapper userMapper, ServerAddress serverAddress) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.userMapper = userMapper;
-        this.serverAddress = serverAddress;
     }
 
     @GetMapping
     public Flux<UserPayload> getAllUsers() {
-        return userService.getAllUsers()
-                .map(userMapper::userServiceToUserPayload)
-                .map(u -> {u.setServiceAddress(serverAddress.getHostAddress()); return u;});
+        return userService.getAllUsers();
     }
 
     @GetMapping("/{userId}")
     public Mono<UserPayload> getUser(@PathVariable String userId) {
-        return userService.getUserById(userId)
-                .switchIfEmpty(Mono.error(new NotFoundException("No user found with id: " + userId)))
-                .map(userMapper::userServiceToUserPayload)
-                .map(u -> {u.setServiceAddress(serverAddress.getHostAddress()); return u;});
+        return userService.getUserById(userId);
     }
 }

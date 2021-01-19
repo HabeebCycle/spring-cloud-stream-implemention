@@ -1,7 +1,7 @@
 package com.habeebcycle.microservice.core.user.persistence;
 
+import com.habeebcycle.microservice.core.user.dao.UserDataService;
 import com.habeebcycle.microservice.core.user.model.User;
-import com.habeebcycle.microservice.core.user.service.UserService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,7 @@ import reactor.test.StepVerifier;
 public class PersistenceTests {
 
     @Autowired
-    private UserService userService;
+    private UserDataService userService;
 
     private User savedUser;
 

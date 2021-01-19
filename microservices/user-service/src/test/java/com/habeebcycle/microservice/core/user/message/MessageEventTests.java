@@ -2,7 +2,8 @@ package com.habeebcycle.microservice.core.user.message;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.habeebcycle.microservice.core.user.service.UserService;
+import com.habeebcycle.microservice.core.user.dao.UserDataService;
+import com.habeebcycle.microservice.core.user.model.User;
 import com.habeebcycle.microservice.util.event.DataEvent;
 import com.habeebcycle.microservice.util.event.EventType;
 import com.habeebcycle.microservice.util.payload.UserPayload;
@@ -27,16 +28,13 @@ public class MessageEventTests {
     InputDestination input;
 
     @Autowired
-    private UserService userService;
+    private UserDataService userService;
 
     /*@Autowired
-    OutputDestination output;
-
-    @Autowired
-    ObjectMapper mapper;*/
+    OutputDestination output;*/
 
     @Test
-    void sendAndReceiveMessageTest() {
+    void sendCreateAndDeleteMessageTest() {
         String username = "test";
         String email = "test@test.com";
         String name = "Test Test";
@@ -45,6 +43,7 @@ public class MessageEventTests {
         Assertions.assertFalse(userService.isUserExists(username, email).block());
         Assertions.assertEquals(0, userService.countAllUsers().block());
 
+        // Send CREATE event
         UserPayload userPayload = new UserPayload(username, email, name);
         DataEvent<String, UserPayload> event = new DataEvent<>(EventType.CREATE, null, userPayload);
 
@@ -54,27 +53,17 @@ public class MessageEventTests {
         Assertions.assertTrue(userService.isUserExists(username, email).block());
         Assertions.assertEquals(1, userService.countAllUsers().block());
 
-        /*
-        Message<DataEvent<String, UserPayload>> inputMsg = MessageBuilder.withPayload(event).build();
-        input.send(new GenericMessage<>(event));
-        input.send(inputMsg);
+        // Send DELETE event
+        User user = userService.getUserByUsername(username).block();
+        Assertions.assertNotNull(user);
 
-        output.receive(0, "userConsumer-out-0");
-        Assertions.assertNotNull(output.receive().getPayload());
-        Assertions.assertTrue(output.receive().getPayload().length > 0);
+        String userId = user.getId();
+        event = new DataEvent<>(EventType.DELETE, userId, null);
 
-        String payload = output.receive().getPayload().toString();
+        input.send(MessageBuilder.withPayload(event).build());
 
-        DataEvent<String, UserPayload> dataEvent = null;
-
-        try {
-            dataEvent = mapper.readValue(payload, DataEvent.class);
-        } catch (JsonProcessingException ignored) {}
-
-        Assertions.assertNotNull(dataEvent);
-        UserPayload processPayload = dataEvent.getData();
-
-        Assertions.assertEquals(processPayload.getEmail(), userPayload.getEmail());
-        */
+        Assertions.assertNull(userService.getUserByUsername(username).block());
+        Assertions.assertFalse(userService.isUserExists(username, email).block());
+        Assertions.assertEquals(0, userService.countAllUsers().block());
     }
 }

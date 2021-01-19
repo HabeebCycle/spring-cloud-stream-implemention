@@ -1,7 +1,11 @@
 package com.habeebcycle.microservice.core.user.service;
 
+import com.habeebcycle.microservice.core.user.dao.UserDataService;
+import com.habeebcycle.microservice.core.user.mapper.UserMapper;
 import com.habeebcycle.microservice.core.user.model.User;
-import com.habeebcycle.microservice.core.user.repository.UserRepository;
+import com.habeebcycle.microservice.util.exceptions.NotFoundException;
+import com.habeebcycle.microservice.util.http.ServerAddress;
+import com.habeebcycle.microservice.util.payload.UserPayload;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -9,49 +13,64 @@ import reactor.core.publisher.Mono;
 @Service
 public class UserService {
 
-    private final UserRepository userRepository;
+    private final UserDataService userDataService;
+    private final UserMapper userMapper;
+    private final ServerAddress serverAddress;
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserService(UserDataService userDataService, UserMapper userMapper, ServerAddress serverAddress) {
+        this.userDataService = userDataService;
+        this.userMapper = userMapper;
+        this.serverAddress = serverAddress;
     }
 
-    public Flux<User> getAllUsers() {
-        return userRepository.findAll();
+    public Flux<UserPayload> getAllUsers() {
+        return userDataService.getAllUsers()
+                .map(userMapper::userServiceToUserPayload)
+                .map(u -> {u.setServiceAddress(serverAddress.getHostAddress()); return u;});
     }
 
-    public Mono<User> getUserById(String id) {
-        return userRepository.findById(id);
+    public Mono<UserPayload> getUserById(String userId) {
+        return userDataService.getUserById(userId)
+                .switchIfEmpty(Mono.error(new NotFoundException("No user found with id: " + userId)))
+                .map(userMapper::userServiceToUserPayload)
+                .map(u -> {u.setServiceAddress(serverAddress.getHostAddress()); return u;});
     }
 
-    public Mono<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public Mono<UserPayload> getUserByEmail(String email) {
+        return userDataService.getUserByEmail(email)
+                .switchIfEmpty(Mono.error(new NotFoundException("No user found with email: " + email)))
+                .map(userMapper::userServiceToUserPayload)
+                .map(u -> {u.setServiceAddress(serverAddress.getHostAddress()); return u;});
     }
 
-    public Mono<User> getUserByUsername(String username) {
-        return userRepository.findByUsername(username);
+    public Mono<UserPayload> getUserByUsername(String username) {
+        return userDataService.getUserByUsername(username)
+                .switchIfEmpty(Mono.error(new NotFoundException("No user found with username: " + username)))
+                .map(userMapper::userServiceToUserPayload)
+                .map(u -> {u.setServiceAddress(serverAddress.getHostAddress()); return u;});
     }
 
     public Mono<Boolean> isUserExists(String id) {
-        return userRepository.existsById(id);
+        return userDataService.isUserExists(id);
     }
 
     public Mono<Boolean> isUserExists(String username, String email) {
-        return userRepository.existsByUsernameOrEmail(username, email);
+        return userDataService.isUserExists(username, email);
     }
 
     public Mono<User> saveUser(User user) {
-        return userRepository.save(user);
+        return userDataService.saveUser(user);
     }
 
     public Mono<Void> deleteUserById(String id) {
-        return userRepository.deleteById(id);
+        return userDataService.deleteUserById(id);
     }
 
     public Mono<Void> deleteAllUsers() {
-        return userRepository.deleteAll();
+        return userDataService.deleteAllUsers();
     }
 
     public Mono<Long> countAllUsers() {
-        return userRepository.count();
+        return userDataService.countAllUsers();
     }
 }

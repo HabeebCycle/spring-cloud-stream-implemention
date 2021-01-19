@@ -1,5 +1,6 @@
 package com.habeebcycle.microservice.core.user;
 
+import com.habeebcycle.microservice.core.user.dao.UserDataService;
 import com.habeebcycle.microservice.core.user.model.User;
 import com.habeebcycle.microservice.core.user.service.UserService;
 import com.habeebcycle.microservice.util.event.DataEvent;
@@ -35,7 +36,7 @@ class UserServerApplicationTests {
 	private WebTestClient client;
 
 	@Autowired
-	private UserService userService;
+	private UserDataService userService;
 
 	//@Autowired
 	//private Sink channels;

@@ -1,6 +1,8 @@
 package com.habeebcycle.microservice.composite.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.habeebcycle.microservice.util.event.DataEvent;
+import com.habeebcycle.microservice.util.event.EventType;
 import com.habeebcycle.microservice.util.exceptions.BadRequestException;
 import com.habeebcycle.microservice.util.exceptions.NotFoundException;
 import com.habeebcycle.microservice.util.http.error.HttpErrorInfo;
@@ -9,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -22,19 +25,24 @@ public class CompositeService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CompositeService.class);
     private static final String USER_REQ_MAP = "/user";
+    private static final String PRODUCER_BINDING_NAME = "userProducer-out-0";
 
     private final String userServiceUrl;
     private final WebClient webClient;
     private final ObjectMapper mapper;
 
+    private final StreamBridge streamBridge;
+
     @Autowired
     public CompositeService(
             @Value("${app.user-service.host}") String userServiceHost,
-            @Value("${app.user-service.port}") int    userServicePort,
-            WebClient.Builder webClient, ObjectMapper mapper) {
+            @Value("${app.user-service.port}") int userServicePort,
+            WebClient.Builder webClient, ObjectMapper mapper, StreamBridge streamBridge) {
+
         this.userServiceUrl = "http://" + userServiceHost + ":" + userServicePort + USER_REQ_MAP;
         this.webClient = webClient.build();
         this.mapper = mapper;
+        this.streamBridge = streamBridge;
     }
 
     public Flux<UserPayload> getAllUsers() {
@@ -47,7 +55,6 @@ public class CompositeService {
                 .uri(userServiceUrl)
                 .retrieve()
                 .bodyToFlux(UserPayload.class)
-                .log()
                 .onErrorResume(error -> Flux.empty());
     }
 
@@ -61,13 +68,26 @@ public class CompositeService {
                 .uri(url)
                 .retrieve()
                 .bodyToMono(UserPayload.class)
-                .log()
                 .onErrorMap(WebClientResponseException.class, this::handleException);
+    }
+
+    public Mono<UserPayload> createUser(UserPayload userPayload) {
+        DataEvent<String, UserPayload> event = new DataEvent<>(EventType.CREATE, null, userPayload);
+        boolean sent = streamBridge.send(PRODUCER_BINDING_NAME, event);
+
+        return sent ? Mono.just(userPayload) : Mono.error(new BadRequestException("Error streaming data"));
+    }
+
+    public Mono<Void> deleteUser(String userId) {
+        DataEvent<String, UserPayload> event = new DataEvent<>(EventType.DELETE, userId, null);
+        streamBridge.send(PRODUCER_BINDING_NAME, event);
+
+        return Mono.empty();
     }
 
     // Utility Methods
 
-    private Throwable handleException(Throwable ex) {
+    public Throwable handleException(Throwable ex) {
 
         if (!(ex instanceof WebClientResponseException)) {
             LOG.warn("Got a unexpected error: {}, will rethrow it", ex.toString());
@@ -94,8 +114,8 @@ public class CompositeService {
     private String getErrorMessage(WebClientResponseException ex) {
         try {
             return mapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
-        } catch (IOException ioex) {
-            return ex.getMessage();
+        } catch (IOException ioe) {
+            return ioe.getMessage();
         }
     }
 }

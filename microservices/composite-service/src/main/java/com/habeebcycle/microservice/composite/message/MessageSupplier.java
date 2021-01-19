@@ -34,7 +34,7 @@ public class MessageSupplier {
     }
 
     private DataEvent<String, UserPayload> getUserPayload() {
-        UserPayload user = new UserPayload("aminat2k2", "amins2k2@gmail.com", "Aminat Okunade");
+        UserPayload user = new UserPayload("aminat2z2", "amins2zy@gmail.com", "Aminat Okunade");
         return new DataEvent<>(EventType.CREATE, null, user);
     }
 }
